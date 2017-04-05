@@ -94,6 +94,8 @@ func getPageSummary(url string) (openGraphProps, error) {
 	return nil, err
 }
 
+//helper for finding the opengraph properties -- adds the url, title, description and image into
+//a opengraph map
 func ogPropHelper(token html.Token, body openGraphProps, host string) {
 	if "meta" == token.Data {
 		tokenProp := token.Attr[0]
@@ -125,13 +127,13 @@ func ogPropHelper(token html.Token, body openGraphProps, host string) {
 							body["image"] = joinedPth
 						}
 					}
-				default:
 				}
 			}
 		}
 	}
 }
 
+//helper for the fallback tags if there are sans open graph tags
 func fallbackChecker(token html.Token, tokenizer *html.Tokenizer, body openGraphProps, host string) {
 	switch token.Data {
 	case "title":
@@ -224,5 +226,6 @@ func SummaryHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "error encoding JSON: "+err.Error(), http.StatusInternalServerError)
 	}
+
 	w.Write(jsonProp)
 }
