@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -20,7 +22,7 @@ func getPageSummary(url string) (openGraphProps, error) {
 	//Get the URL
 	//If there was an error, return it
 
-	resp, err := http.Get(url)
+	resp, err := http.Get("https://google.com")
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the URL: %v", err)
@@ -80,36 +82,95 @@ func getPageSummary(url string) (openGraphProps, error) {
 		if tokenType == html.StartTagToken || tokenType == html.SelfClosingTagToken {
 			//this gets the whole tag
 			token := tokenizer.Token()
-			if "meta" == token.Data {
-				tokenProp := token.Attr[0]
-				if "property" == tokenProp.Key {
-					//gets the meta prop and the value of it--breaks outta the loop
-					prop := strings.Split(token.Attr[0].Val, ":")
-					if "og" == prop[0] {
-						switch prop[1] {
-						case
-							"url",
-							"title",
-							"description",
-							"image":
-							//ensures that og:image:width is not received
-							if len(prop) == 2 {
-								body[prop[1]] = token.Attr[1].Val
-							}
-						default:
-						}
-					}
-				}
-			}
-
+			ogPropHelper(token, body, url)
+			fallbackChecker(token, tokenizer, body, url)
 		}
 	}
 
 	if len(body) != 0 {
 		return body, nil
 	}
+	//no props
 	return nil, err
+}
 
+func ogPropHelper(token html.Token, body openGraphProps, host string) {
+	if "meta" == token.Data {
+		tokenProp := token.Attr[0]
+		if "property" == tokenProp.Key {
+			//gets the meta prop and the value of it
+			prop := strings.Split(token.Attr[0].Val, ":")
+			if "og" == prop[0] {
+				//sees the property after the open graph abbr.
+				switch prop[1] {
+				case
+					"url",
+					"title",
+					"description":
+					//ensures that og:image:width is not received
+					if len(prop) == 2 {
+						body[prop[1]] = token.Attr[1].Val
+					}
+				//tests to see if the path is relative, if it is then combine the path and the url
+				case "image":
+					if len(prop) == 2 {
+						//gets the relative/absolute url
+						u, _ := url.Parse(token.Attr[1].Val)
+						//if it is absolute just add it to the body image
+						if u.IsAbs() {
+							body["image"] = token.Attr[1].Val
+						} else {
+							//joins the host with the relative url
+							joinedPth := path.Join(host, u.Path)
+							body["image"] = joinedPth
+						}
+					}
+				default:
+				}
+			}
+		}
+	}
+}
+
+func fallbackChecker(token html.Token, tokenizer *html.Tokenizer, body openGraphProps, host string) {
+	switch token.Data {
+	case "title":
+		title := tokenizer.Next()
+		if title == html.TextToken {
+			//checks to see if title is already in the map
+			_, ok := body["title"]
+			if !ok {
+				body["title"] = tokenizer.Token().Data
+			}
+		}
+	case "link":
+		if "icon" == token.Attr[0].Val {
+			_, ok := body["image"]
+			if !ok {
+				//gets the relative/absolute url
+				u, _ := url.Parse(token.Attr[1].Val)
+				//if it is absolute just add it to the body image
+				if u.IsAbs() {
+					body["image"] = token.Attr[1].Val
+				} else {
+					//joins the host with the relative url
+					joinedPth := path.Join(host, u.Path)
+					body["image"] = joinedPth
+				}
+			}
+		}
+	case "meta":
+		tokenProp := token.Attr[0]
+		if "name" == tokenProp.Key {
+			if "description" == tokenProp.Val {
+				//checks to see if description already there
+				_, ok := body["title"]
+				if !ok {
+					body["description"] = token.Attr[1].Val
+				}
+			}
+		}
+	}
 }
 
 //SummaryHandler fetches the URL in the `url` query string parameter, extracts
@@ -163,6 +224,5 @@ func SummaryHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "error encoding JSON: "+err.Error(), http.StatusInternalServerError)
 	}
-
 	w.Write(jsonProp)
 }
