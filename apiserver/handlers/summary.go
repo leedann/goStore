@@ -22,7 +22,7 @@ func getPageSummary(url string) (openGraphProps, error) {
 	//Get the URL
 	//If there was an error, return it
 
-	resp, err := http.Get("https://google.com")
+	resp, err := http.Get(url)
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the URL: %v", err)
