@@ -8,7 +8,7 @@ import (
 	"github.com/info344-s17/challenges-leedann/apiserver/handlers"
 )
 
-const defaultPort = "80"
+const defaultPort = "443"
 
 const (
 	apiRoot    = "/v1/"
@@ -31,6 +31,9 @@ func main() {
 		HOST = ""
 	}
 
+	certPath := os.Getenv("TLSCERT")
+	keyPath := os.Getenv("TLSKEY")
+
 	//add your handlers.SummaryHandler function as a handler
 	//for the apiSummary route
 	//HINT: https://golang.org/pkg/net/http/#HandleFunc
@@ -39,6 +42,7 @@ func main() {
 	//start your web server and use log.Fatal() to log
 	//any errors that occur if the server can't start
 	//HINT: https://golang.org/pkg/net/http/#ListenAndServe
-	log.Fatal(http.ListenAndServe(HOST+":"+PORT, nil))
+	addr := HOST + ":" + PORT
+	log.Fatal(http.ListenAndServeTLS(addr, certPath, keyPath, nil))
 
 }

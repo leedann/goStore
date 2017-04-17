@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import './App.css';
 
-const BASE_URL = "http://138.68.249.59/";
+const BASE_URL = "https://api.leedann.me/";
 const SEARCHURL = "v1/summary?url=";
 
 class OgpCard extends Component {
@@ -45,8 +45,8 @@ class App extends Component {
             .then(response => response.json())
             .then(data => this.setState({
                 ogp: data,
-                errorMess: ""}))
-            .catch(error =>  this.setState({errorMess: "Bad request from URL (try http or https)"})); 
+                errorMess: ""}))    
+            .catch(error =>  this.setState({errorMess: "Bad request from URL(missing http/https?)"})); 
     }
     handleChange(event) {
         this.setState({query: event.target.value});
