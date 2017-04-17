@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -49,15 +48,14 @@ func getPageSummary(url string) (openGraphProps, error) {
 
 	cType := resp.Header.Get("Content-Type")
 	if !strings.HasPrefix(cType, "text/html") {
-		log.Fatalf("response content type was %s and not text/html\n", cType)
-		return nil, err
+		return nil, fmt.Errorf("response content type was %s and not text/html", cType)
 	}
 
 	//create a new openGraphProps map instance to hold
 	//the Open Graph properties you find
 	//(see type definition above)
 
-	body := make(openGraphProps)
+	ogpMap := make(openGraphProps)
 
 	//tokenize the response body's HTML and extract
 	//any Open Graph properties you find into the map,
@@ -82,21 +80,21 @@ func getPageSummary(url string) (openGraphProps, error) {
 		if tokenType == html.StartTagToken || tokenType == html.SelfClosingTagToken {
 			//this gets the whole tag
 			token := tokenizer.Token()
-			ogPropHelper(token, body, url)
-			fallbackChecker(token, tokenizer, body, url)
+			ogPropHelper(token, ogpMap, url)
+			fallbackChecker(token, tokenizer, ogpMap, url)
 		}
 	}
 
-	if len(body) != 0 {
-		return body, nil
+	if len(ogpMap) != 0 {
+		return ogpMap, nil
 	}
 	//no props
-	return nil, err
+	return nil, fmt.Errorf("No opengraph properties")
 }
 
 //helper for finding the opengraph properties -- adds the url, title, description and image into
 //a opengraph map
-func ogPropHelper(token html.Token, body openGraphProps, host string) {
+func ogPropHelper(token html.Token, ogpProps openGraphProps, host string) {
 	if "meta" == token.Data {
 		tokenProp := token.Attr[0]
 		if "property" == tokenProp.Key {
@@ -111,7 +109,7 @@ func ogPropHelper(token html.Token, body openGraphProps, host string) {
 					"description":
 					//ensures that og:image:width is not received
 					if len(prop) == 2 {
-						body[prop[1]] = token.Attr[1].Val
+						ogpProps[prop[1]] = token.Attr[1].Val
 					}
 				//tests to see if the path is relative, if it is then combine the path and the url
 				case "image":
@@ -120,11 +118,11 @@ func ogPropHelper(token html.Token, body openGraphProps, host string) {
 						u, _ := url.Parse(token.Attr[1].Val)
 						//if it is absolute just add it to the body image
 						if u.IsAbs() {
-							body["image"] = token.Attr[1].Val
+							ogpProps["image"] = token.Attr[1].Val
 						} else {
 							//joins the host with the relative url
 							joinedPth := path.Join(host, u.Path)
-							body["image"] = joinedPth
+							ogpProps["image"] = joinedPth
 						}
 					}
 				}
@@ -225,6 +223,7 @@ func SummaryHandler(w http.ResponseWriter, r *http.Request) {
 	jsonProp, err := json.Marshal(ogProps)
 	if err != nil {
 		http.Error(w, "error encoding JSON: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Write(jsonProp)

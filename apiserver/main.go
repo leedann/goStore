@@ -27,9 +27,6 @@ func main() {
 		PORT = defaultPort
 	}
 	HOST := os.Getenv("HOST")
-	if len(HOST) == 0 {
-		HOST = ""
-	}
 
 	certPath := os.Getenv("TLSCERT")
 	keyPath := os.Getenv("TLSKEY")
