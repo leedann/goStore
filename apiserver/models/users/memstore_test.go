@@ -20,8 +20,11 @@ func TestMemStore(t *testing.T) {
 	if nil == u {
 		t.Fatalf("nil returned from MemStore.Insert()--you probably haven't implemented NewUser.ToUser() yet")
 	}
+	if _, ok := u.ID.(string); !ok {
+		t.Fatalf("ID does not have a concrete value string\n")
+	}
 
-	if len(string(u.ID)) == 0 {
+	if len(u.ID.(string)) == 0 {
 		t.Errorf("new ID is zero-length\n")
 	}
 
