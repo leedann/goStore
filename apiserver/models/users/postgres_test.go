@@ -33,8 +33,9 @@ func TestPostgresStore(t *testing.T) {
 		LastName:     "tester",
 	}
 
-	//clears previous test users in the DB
-	_, err = psdb.Exec("DELETE FROM users WHERE Email = test@test.com")
+	//reset the auto increment counter and clears previous test users in the DB
+	_, err = psdb.Exec("ALTER SEQUENCE users_id_seq RESTART")
+	_, err = psdb.Exec("DELETE FROM users")
 	if err != nil {
 		t.Errorf("could not delete table: %v\n", err)
 	}
