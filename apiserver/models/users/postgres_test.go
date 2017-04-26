@@ -48,6 +48,7 @@ func TestPostgresStore(t *testing.T) {
 	if nil == user {
 		t.Fatalf("Nil returned from store.Insert()\n")
 	}
+
 	//getting user from ID of previous inserted user
 	user2, err := store.GetByID(user.ID)
 	if err != nil {
@@ -107,4 +108,5 @@ func TestPostgresStore(t *testing.T) {
 	if all[0].ID != user.ID {
 		t.Errorf("ID of user retrieved by all does not match: expected %s but got %s\n", user.ID, all[0].ID)
 	}
+	_, err = psdb.Exec("DELETE FROM users")
 }

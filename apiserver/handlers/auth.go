@@ -12,6 +12,7 @@ const (
 	charsetUTF8         = "charset=utf-8"
 	contentTypeJSON     = "application/json"
 	contentTypeJSONUTF8 = contentTypeJSON + "; " + charsetUTF8
+	contentTypeTextUTF8 = "text/plain; " + charsetUTF8
 )
 
 //UserHandler allows users to sign up or gets all users
@@ -29,13 +30,14 @@ func (ctx *Context) UserHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "User not valid", http.StatusBadRequest)
 			return
 		}
-		_, err = ctx.UserStore.GetByEmail(newuser.Email)
-		if err != nil {
+		usr, _ := ctx.UserStore.GetByEmail(newuser.Email)
+		if usr != nil {
 			http.Error(w, "Email Already Exists", http.StatusBadRequest)
 			return
 		}
-		_, err = ctx.UserStore.GetByUserName(newuser.UserName)
-		if err != nil {
+
+		usr, _ = ctx.UserStore.GetByUserName(newuser.UserName)
+		if usr != nil {
 			http.Error(w, "Username Already Exists", http.StatusBadRequest)
 			return
 		}
@@ -68,10 +70,12 @@ func (ctx *Context) SessionsHandler(w http.ResponseWriter, r *http.Request) {
 		u, err := ctx.UserStore.GetByEmail(creds.Email)
 		if err != nil {
 			http.Error(w, "Email not found", http.StatusUnauthorized)
+			return
 		}
 		err = u.Authenticate(creds.Password)
 		if err != nil {
 			http.Error(w, "Error authenticating user", http.StatusUnauthorized)
+			return
 		}
 		state := &SessionState{}
 		_, err = sessions.BeginSession(ctx.SessionKey, ctx.SessionStore, state, w)
@@ -92,7 +96,7 @@ func (ctx *Context) SessionsMineHandler(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			http.Error(w, "Error ending session", http.StatusInternalServerError)
 		}
-		w.Header().Add("Content-Type", "text/plain")
+		w.Header().Add("Content-Type", contentTypeTextUTF8)
 		w.Write([]byte("User has been signed out"))
 	} else {
 		http.Error(w, "Error with request", http.StatusBadRequest)
@@ -102,12 +106,17 @@ func (ctx *Context) SessionsMineHandler(w http.ResponseWriter, r *http.Request) 
 
 //UsersMeHandler Get the session state
 func (ctx *Context) UsersMeHandler(w http.ResponseWriter, r *http.Request) {
-	state := &SessionState{}
-	_, err := sessions.GetState(r, ctx.SessionKey, ctx.SessionStore, state)
-	if err != nil {
-		http.Error(w, "Error getting sessionID", http.StatusInternalServerError)
+	if r.Method == "GET" {
+		state := &SessionState{}
+		s := sessions.SessionID(ctx.SessionKey)
+		err := ctx.SessionStore.Get(s, state)
+		if err != nil {
+			http.Error(w, "Error getting sessionID", http.StatusInternalServerError)
+		}
+		encoder := json.NewEncoder(w)
+		encoder.Encode(state.User)
+	} else {
+		http.Error(w, "Error with request", http.StatusBadRequest)
 		return
 	}
-	encoder := json.NewEncoder(w)
-	encoder.Encode(state.User)
 }
